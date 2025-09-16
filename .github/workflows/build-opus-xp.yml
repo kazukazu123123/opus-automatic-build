@@ -1,0 +1,55 @@
+name: Build Opus
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install VS2017 Build Tools with XP toolset
+        run: |
+          choco install visualstudio2017buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart" -y
+          refreshenv
+
+      - name: Download opus
+        run: |
+          git clone https://github.com/xiph/opus.git
+          cd opus
+          git fetch --tags
+          git checkout v1.5.2 
+
+      - name: Configure (CMake, XP toolset)
+        run: |
+          cd opus
+          cmake . -G "Visual Studio 15 2017 Win64" -A x64 -T v141_xp
+
+      - name: Build (MSBuild)
+        run: |
+          cd opus
+          msbuild opus.sln /p:Configuration=Release /p:Platform=x64 /p:XPDeprecationWarning=false
+
+      - name: Collect artifacts
+        run: |
+          set OPUS_VER=1.5.2
+          mkdir artifacts
+          mkdir artifacts/include
+          mkdir artifacts/dll
+
+          for /r opus %%f in (*.dll *.lib) do copy "%%f" artifacts\dll\
+
+          xcopy opus\include artifacts\include /E /I /Y
+
+          powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: opus-1.5.2-xp
+          path: opus-1.5.2-xp.zip
