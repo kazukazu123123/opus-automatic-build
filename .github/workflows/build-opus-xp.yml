@@ -14,7 +14,13 @@ jobs:
       - name: Install v141 XP toolset for VS2022
         shell: pwsh
         run: |
-          & "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Installer\vs_installer.exe" modify --add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart
+          # Use the correct path for Visual Studio installer on windows-2022
+          $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
+          if (Test-Path $vsInstaller) {
+            & $vsInstaller modify --installPath "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise" --add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart
+          } else {
+            Write-Error "Visual Studio installer not found at $vsInstaller"
+          }
 
       - name: Download Opus
         run: |
@@ -26,7 +32,7 @@ jobs:
       - name: Build Opus x86 & x64
         shell: cmd
         run: |
-          set VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\BuildTools
+          set VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise
 
           rem --- x86 Build ---
           call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86 -xp
@@ -50,15 +56,15 @@ jobs:
         run: |
           set OPUS_VER=1.5.2
           mkdir artifacts
-          mkdir artifacts/include
-          mkdir artifacts/dll_x86
-          mkdir artifacts/dll_x64
+          mkdir artifacts\include
+          mkdir artifacts\dll_x86
+          mkdir artifacts\dll_x64
 
           rem x86 dll / lib
-          for /r build_x86 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x86\
+          for /r opus\build_x86 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x86\
 
           rem x64 dll / lib
-          for /r build_x64 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x64\
+          for /r opus\build_x64 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x64\
 
           xcopy opus\include artifacts\include /E /I /Y
 
