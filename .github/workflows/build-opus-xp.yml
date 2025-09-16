@@ -72,6 +72,12 @@ jobs:
       - name: Collect artifacts
         shell: cmd
         run: |
+          echo "--- Listing x86 build directory contents ---"
+          dir /s opus\build_x86
+
+          echo "--- Listing x64 build directory contents ---"
+          dir /s opus\build_x64```
+
           set OPUS_VER=1.5.2
           mkdir artifacts
           mkdir artifacts\include
