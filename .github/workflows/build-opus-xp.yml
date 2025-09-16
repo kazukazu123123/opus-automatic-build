@@ -6,6 +6,7 @@ on:
 jobs:
   build:
     runs-on: windows-2022
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -21,16 +22,39 @@ jobs:
           git fetch --tags
           git checkout v1.5.2
 
-      - name: Build Opus
+      - name: Get VS2017 path
+        id: vs2017
+        shell: pwsh
+        run: |
+          $vsPath = & "$env:ProgramFiles(x86)\Microsoft Visual Studio\Installer\vswhere.exe" `
+            -version "[15.0,16.0)" `
+            -products * `
+            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+            -property installationPath
+          Write-Host "VS2017 Path: $vsPath"
+          echo "::set-output name=path::$vsPath"
+
+      - name: Build Opus x86 & x64
         shell: cmd
         run: |
-          for /f "tokens=*" %%i in ('"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version [15.0,16.0) -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath') do set VS2017_PATH=%%i
+          set VS2017_PATH=${{ steps.vs2017.outputs.path }}
 
-          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
-
+          rem --- x86 Build ---
+          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86 -xp
           cd opus
-          cmake . -G "Visual Studio 15 2017 Win64" -A x64 -T v141_xp
+          mkdir build_x86
+          cd build_x86
+          cmake .. -G "Visual Studio 15 2017" -A Win32 -T v141_xp
+          msbuild opus.sln /p:Configuration=Release /p:Platform=Win32 /p:XPDeprecationWarning=false
+          cd ..
+
+          rem --- x64 Build ---
+          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
+          mkdir build_x64
+          cd build_x64
+          cmake .. -G "Visual Studio 15 2017 Win64" -A x64 -T v141_xp
           msbuild opus.sln /p:Configuration=Release /p:Platform=x64 /p:XPDeprecationWarning=false
+          cd ..
 
       - name: Collect artifacts
         shell: cmd
@@ -38,11 +62,19 @@ jobs:
           set OPUS_VER=1.5.2
           mkdir artifacts
           mkdir artifacts/include
-          mkdir artifacts/dll
+          mkdir artifacts/dll_x86
+          mkdir artifacts/dll_x64
 
-          for /r opus %%f in (*.dll *.lib) do copy "%%f" artifacts\dll\
+          rem x86 dll / lib
+          for /r build_x86 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x86\
+
+          rem x64 dll / lib
+          for /r build_x64 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x64\
+
+          rem Header file
           xcopy opus\include artifacts\include /E /I /Y
 
+          rem Compress with zip
           powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
 
       - name: Upload artifacts
