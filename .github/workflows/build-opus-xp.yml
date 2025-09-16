@@ -2,13 +2,10 @@ name: Build Opus
 
 on:
   workflow_dispatch:
-  push:
-    branches: [ main ]
 
 jobs:
   build:
     runs-on: windows-2022
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -16,26 +13,27 @@ jobs:
       - name: Install VS2017 Build Tools with XP toolset
         run: |
           choco install visualstudio2017buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart" -y
-          refreshenv
 
       - name: Download opus
         run: |
           git clone https://github.com/xiph/opus.git
           cd opus
           git fetch --tags
-          git checkout v1.5.2 
+          git checkout v1.5.2
 
-      - name: Configure (CMake, XP toolset)
+      - name: Build Opus
+        shell: cmd
         run: |
+          for /f "tokens=*" %%i in ('"%ProgramFiles(x86)%\Microsoft Visual Studio\Installer\vswhere.exe" -version [15.0,16.0) -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath') do set VS2017_PATH=%%i
+
+          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
+
           cd opus
           cmake . -G "Visual Studio 15 2017 Win64" -A x64 -T v141_xp
-
-      - name: Build (MSBuild)
-        run: |
-          cd opus
           msbuild opus.sln /p:Configuration=Release /p:Platform=x64 /p:XPDeprecationWarning=false
 
       - name: Collect artifacts
+        shell: cmd
         run: |
           set OPUS_VER=1.5.2
           mkdir artifacts
@@ -43,7 +41,6 @@ jobs:
           mkdir artifacts/dll
 
           for /r opus %%f in (*.dll *.lib) do copy "%%f" artifacts\dll\
-
           xcopy opus\include artifacts\include /E /I /Y
 
           powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
