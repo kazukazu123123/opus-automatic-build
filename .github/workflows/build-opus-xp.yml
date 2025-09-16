@@ -75,17 +75,23 @@ jobs:
           set OPUS_VER=1.5.2
           mkdir artifacts
           mkdir artifacts\include
-          mkdir artifacts\dll_x86
-          mkdir artifacts\dll_x64
+          mkdir artifacts\lib_x86
+          mkdir artifacts\lib_x64
 
-          rem x86 dll / lib
-          for /r opus\build_x86 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x86\
+          rem The DLL and the import LIB are in the Release sub-folder
+          echo "Copying x86 libraries..."
+          copy opus\build_x86\Release\*.dll artifacts\lib_x86\
+          copy opus\build_x86\Release\*.lib artifacts\lib_x86\
 
-          rem x64 dll / lib
-          for /r opus\build_x64 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x64\
+          rem The DLL and the import LIB are in the Release sub-folder
+          echo "Copying x64 libraries..."
+          copy opus\build_x64\Release\*.dll artifacts\lib_x64\
+          copy opus\build_x64\Release\*.lib artifacts\lib_x64\
 
+          echo "Copying include files..."
           xcopy opus\include artifacts\include /E /I /Y
 
+          echo "Zipping artifacts..."
           powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
 
       - name: Upload artifacts
