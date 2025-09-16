@@ -17,7 +17,7 @@ jobs:
           $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
           if (Test-Path $vsInstaller) {
             Write-Host "Starting Visual Studio Installer to add v141_xp toolset. This will take a few minutes..."
-            & $vsInstaller modify --installPath "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise" --add Microsoft.VisualStudio.Component.VC.v141.xp --wait --norestart --quiet -PassThru
+            & $vsInstaller modify --installPath "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise" --add Microsoft.VisualStudio.Component.VC.v141.xp --wait --norestart -PassThru
           } else {
             Write-Error "Visual Studio installer not found at $vsInstaller"
           }
