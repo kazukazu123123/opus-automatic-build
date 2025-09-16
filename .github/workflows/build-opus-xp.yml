@@ -11,48 +11,38 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install VS2017 Build Tools with XP toolset
+      - name: Install v141 XP toolset for VS2022
         run: |
-          choco install visualstudio2017buildtools --package-parameters "--add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart" -y
+          "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Installer\vs_installer.exe" modify `
+            --add Microsoft.VisualStudio.Component.VC.v141.xp `
+            --quiet --norestart
 
-      - name: Download opus
+      - name: Download Opus
         run: |
           git clone https://github.com/xiph/opus.git
           cd opus
           git fetch --tags
           git checkout v1.5.2
 
-      - name: Get VS2017 path
-        id: vs2017
-        shell: pwsh
-        run: |
-          $vsPath = & ("${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe") `
-            -version "[15.0,16.0)" `
-            -products * `
-            -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
-            -property installationPath
-          Write-Host "VS2017 Path: $vsPath"
-          echo "::set-output name=path::$vsPath"
-
       - name: Build Opus x86 & x64
         shell: cmd
         run: |
-          set VS2017_PATH=${{ steps.vs2017.outputs.path }}
+          set VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\BuildTools
 
           rem --- x86 Build ---
-          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86 -xp
+          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86 -xp
           cd opus
           mkdir build_x86
           cd build_x86
-          cmake .. -G "Visual Studio 15 2017" -A Win32 -T v141_xp
+          cmake .. -G "Visual Studio 17 2022" -A Win32 -T v141_xp
           msbuild opus.sln /p:Configuration=Release /p:Platform=Win32 /p:XPDeprecationWarning=false
           cd ..
 
           rem --- x64 Build ---
-          call "%VS2017_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
+          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
           mkdir build_x64
           cd build_x64
-          cmake .. -G "Visual Studio 15 2017 Win64" -A x64 -T v141_xp
+          cmake .. -G "Visual Studio 17 2022" -A x64 -T v141_xp
           msbuild opus.sln /p:Configuration=Release /p:Platform=x64 /p:XPDeprecationWarning=false
           cd ..
 
@@ -71,10 +61,8 @@ jobs:
           rem x64 dll / lib
           for /r build_x64 %%f in (*.dll *.lib) do copy "%%f" artifacts\dll_x64\
 
-          rem Header file
           xcopy opus\include artifacts\include /E /I /Y
 
-          rem Compress with zip
           powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
 
       - name: Upload artifacts
