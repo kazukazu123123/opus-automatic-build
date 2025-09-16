@@ -22,6 +22,9 @@ jobs:
             Write-Error "Visual Studio installer not found at $vsInstaller"
           }
 
+      - name: Setup MSBuild and Developer Environment
+        uses: microsoft/setup-msbuild@v1.3.1
+
       - name: Download Opus
         run: |
           git clone https://github.com/xiph/opus.git
@@ -32,67 +35,44 @@ jobs:
       - name: Build Opus x86 & x64 for Windows XP
         shell: cmd
         run: |
-          set "VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           cd opus
 
           rem --- x86 Build for XP ---
-          echo "Setting up Visual Studio x86 environment..."
-          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86
-
-          echo "Creating and navigating to x86 build directory..."
+          echo "Configuring x86 build..."
           mkdir build_x86
           cd build_x86
-
-          echo "Running CMake for x86 with v141_xp toolset..."
-          rem This -T v141_xp flag is the correct way to select the XP toolset
-          cmake .. -G "Visual Studio 17 2022" -A Win32 -T v141_xp
-
-          echo "Building x86 Release..."
+          rem The environment is now set by the setup-msbuild action. We no longer call vcvarsall.bat.
+          cmake .. -G "Visual Studio 17 2022" -A Win32 -T v141_xp -DBUILD_SHARED_LIBS=ON
+          echo "Building x86..."
           msbuild opus.sln /p:Configuration=Release /p:Platform=Win32
-          
           cd ..
 
           rem --- x64 Build for XP ---
-          echo "Setting up Visual Studio x64 environment..."
-          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
-
-          echo "Creating and navigating to x64 build directory..."
+          echo "Configuring x64 build..."
           mkdir build_x64
           cd build_x64
-
-          echo "Running CMake for x64 with v141_xp toolset..."
-          rem This -T v141_xp flag is the correct way to select the XP toolset
-          cmake .. -G "Visual Studio 17 2022" -A x64 -T v141_xp
-
-          echo "Building x64 Release..."
+          rem The environment is also correctly set for the x64 build.
+          cmake .. -G "Visual Studio 17 2022" -A x64 -T v141_xp -DBUILD_SHARED_LIBS=ON
+          echo "Building x64..."
           msbuild opus.sln /p:Configuration=Release /p:Platform=x64
-          
           cd ..
 
       - name: Collect artifacts
         shell: cmd
         run: |
-          echo "--- Listing x86 build directory contents ---"
-          dir /s opus\build_x86
-
-          echo "--- Listing x64 build directory contents ---"
-          dir /s opus\build_x64```
-
           set OPUS_VER=1.5.2
           mkdir artifacts
           mkdir artifacts\include
           mkdir artifacts\lib_x86
           mkdir artifacts\lib_x64
 
-          rem The DLL and the import LIB are in the Release sub-folder
-          echo "Copying x86 libraries..."
-          copy opus\build_x86\Release\*.dll artifacts\lib_x86\
-          copy opus\build_x86\Release\*.lib artifacts\lib_x86\
+          echo "Searching for and copying x86 libraries..."
+          for /r opus\build_x86 %%f in (*.dll) do copy "%%f" artifacts\lib_x86\
+          for /r opus\build_x86 %%f in (*.lib) do copy "%%f" artifacts\lib_x86\
 
-          rem The DLL and the import LIB are in the Release sub-folder
-          echo "Copying x64 libraries..."
-          copy opus\build_x64\Release\*.dll artifacts\lib_x64\
-          copy opus\build_x64\Release\*.lib artifacts\lib_x64\
+          echo "Searching for and copying x64 libraries..."
+          for /r opus\build_x64 %%f in (*.dll) do copy "%%f" artifacts\lib_x64\
+          for /r opus\build_x64 %%f in (*.lib) do copy "%%f" artifacts\lib_x64\
 
           echo "Copying include files..."
           xcopy opus\include artifacts\include /E /I /Y
