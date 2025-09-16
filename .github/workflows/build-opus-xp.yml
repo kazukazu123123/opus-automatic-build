@@ -29,26 +29,44 @@ jobs:
           git fetch --tags
           git checkout v1.5.2
 
-      - name: Build Opus x86 & x64
+      - name: Build Opus x86 & x64 for Windows XP
         shell: cmd
         run: |
-          set VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise
-
-          rem --- x86 Build ---
-          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86 -xp
+          set "VS2022_PATH=C:\Program Files\Microsoft Visual Studio\2022\Enterprise"
           cd opus
+
+          rem --- x86 Build for XP ---
+          echo "Setting up Visual Studio x86 environment..."
+          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x86
+
+          echo "Creating and navigating to x86 build directory..."
           mkdir build_x86
           cd build_x86
+
+          echo "Running CMake for x86 with v141_xp toolset..."
+          rem This -T v141_xp flag is the correct way to select the XP toolset
           cmake .. -G "Visual Studio 17 2022" -A Win32 -T v141_xp
-          msbuild opus.sln /p:Configuration=Release /p:Platform=Win32 /p:XPDeprecationWarning=false
+
+          echo "Building x86 Release..."
+          msbuild opus.sln /p:Configuration=Release /p:Platform=Win32
+          
           cd ..
 
-          rem --- x64 Build ---
-          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64 -xp
+          rem --- x64 Build for XP ---
+          echo "Setting up Visual Studio x64 environment..."
+          call "%VS2022_PATH%\VC\Auxiliary\Build\vcvarsall.bat" x64
+
+          echo "Creating and navigating to x64 build directory..."
           mkdir build_x64
           cd build_x64
+
+          echo "Running CMake for x64 with v141_xp toolset..."
+          rem This -T v141_xp flag is the correct way to select the XP toolset
           cmake .. -G "Visual Studio 17 2022" -A x64 -T v141_xp
-          msbuild opus.sln /p:Configuration=Release /p:Platform=x64 /p:XPDeprecationWarning=false
+
+          echo "Building x64 Release..."
+          msbuild opus.sln /p:Configuration=Release /p:Platform=x64
+          
           cd ..
 
       - name: Collect artifacts
