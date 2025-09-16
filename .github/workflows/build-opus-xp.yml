@@ -12,10 +12,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install v141 XP toolset for VS2022
-        run: |
-          "C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Installer\vs_installer.exe" modify `
-            --add Microsoft.VisualStudio.Component.VC.v141.xp `
-            --quiet --norestart
+        run: '"C:\Program Files\Microsoft Visual Studio\2022\BuildTools\Installer\vs_installer.exe" modify --add Microsoft.VisualStudio.Component.VC.v141.xp --quiet --norestart'
+        shell: pwsh
 
       - name: Download Opus
         run: |
