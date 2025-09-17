@@ -2,14 +2,6 @@ name: Build Opus
 
 on:
   push:
-    tags:
-      - 'v*'  # タグプッシュ時のみ実行
-  workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Tag to build (e.g., v1.5.2)'
-        required: true
-        default: 'v1.5.2'
 
 jobs:
   build:
@@ -19,15 +11,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get tag name
+      - name: Get latest Opus tag
         id: get_tag
         shell: bash
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
-          else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          fi
+          git clone --depth 1 https://github.com/xiph/opus.git temp_opus
+          cd temp_opus
+          git fetch --tags
+          LATEST_TAG=$(git tag --sort=-version:refname | head -n 1)
+          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Using latest Opus tag: $LATEST_TAG"
+          cd ..
+          rm -rf temp_opus
 
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.3.1
