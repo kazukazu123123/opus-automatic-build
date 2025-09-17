@@ -77,36 +77,25 @@ jobs:
           mkdir artifacts\lib_x64
 
           echo "Collecting x86 artifacts..."
-          for /r opus\build\x86 %%f in (*.dll) do (
-            echo Found x86 DLL: %%f
-            copy "%%f" artifacts\lib_x86\
-          )
-          for /r opus\build\x86 %%f in (*.lib) do (
-            echo Found x86 LIB: %%f
-            copy "%%f" artifacts\lib_x86\
+          for /r opus\build\x86 %%f in (*.dll *.lib) do (
+              copy "%%f" artifacts\lib_x86\
           )
 
           echo "Collecting x64 artifacts..."
-          for /r opus\build\x64 %%f in (*.dll) do (
-            echo Found x64 DLL: %%f
-            copy "%%f" artifacts\lib_x64\
-          )
-          for /r opus\build\x64 %%f in (*.lib) do (
-            echo Found x64 LIB: %%f
-            copy "%%f" artifacts\lib_x64\
+          for /r opus\build\x64 %%f in (*.dll *.lib) do (
+              copy "%%f" artifacts\lib_x64\
           )
 
           echo "Collecting headers..."
-          xcopy opus\include artifacts\include /E /I /Y
+          for /r opus\include %%f in (*.h) do (
+              copy "%%f" artifacts\include\
+          )
 
           echo "=== Final artifact contents ==="
           dir artifacts /s
 
-          echo "Creating zip archive..."
-          powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%.zip
-
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: opus-1.5.2
-          path: opus-1.5.2.zip
+          name: opus-%OPUS_VER%
+          path: artifacts
