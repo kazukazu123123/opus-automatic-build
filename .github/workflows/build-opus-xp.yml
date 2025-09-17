@@ -27,17 +27,15 @@ jobs:
         run: |
           cd opus
           echo "Configuring x86 build..."
-          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON ^
-            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x86 ^
-            -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x86
+          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON
           if %ERRORLEVEL% neq 0 (
             echo "CMake configuration failed for x86"
             exit /b 1
           )
           echo "Building x86..."
-          msbuild build/x86/opus.sln /p:Configuration=Release /p:Platform=Win32
+          cmake --build build/x86 --config Release
           if %ERRORLEVEL% neq 0 (
-            echo "MSBuild failed for x86"
+            echo "Build failed for x86"
             exit /b 1
           )
 
@@ -46,23 +44,32 @@ jobs:
         run: |
           cd opus
           echo "Configuring x64 build..."
-          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON ^
-            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x64 ^
-            -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x64
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON
           if %ERRORLEVEL% neq 0 (
             echo "CMake configuration failed for x64"
             exit /b 1
           )
           echo "Building x64..."
-          msbuild build/x64/opus.sln /p:Configuration=Release /p:Platform=x64
+          cmake --build build/x64 --config Release
           if %ERRORLEVEL% neq 0 (
-            echo "MSBuild failed for x64"
+            echo "Build failed for x64"
             exit /b 1
           )
 
-      - name: Collect artifacts
+      - name: Find and collect artifacts
         shell: cmd
         run: |
+          cd opus
+          echo "Searching for generated files..."
+          
+          echo "=== x86 build directory structure ==="
+          dir build\x86 /s /b | findstr /E "\.dll \.lib \.exe"
+          
+          echo "=== x64 build directory structure ==="
+          dir build\x64 /s /b | findstr /E "\.dll \.lib \.exe"
+          
+          echo "=== Creating artifacts directory ==="
+          cd ..
           set OPUS_VER=1.5.2
           mkdir artifacts
           mkdir artifacts\include
@@ -70,22 +77,36 @@ jobs:
           mkdir artifacts\lib_x64
 
           echo "Collecting x86 artifacts..."
-          copy opus\build\Release\x86\*.dll artifacts\lib_x86\ 2>nul || echo "No x86 DLLs found"
-          copy opus\build\Release\x86\*.lib artifacts\lib_x86\ 2>nul || echo "No x86 LIBs found"
+          for /r opus\build\x86 %%f in (*.dll) do (
+            echo Found x86 DLL: %%f
+            copy "%%f" artifacts\lib_x86\
+          )
+          for /r opus\build\x86 %%f in (*.lib) do (
+            echo Found x86 LIB: %%f
+            copy "%%f" artifacts\lib_x86\
+          )
 
           echo "Collecting x64 artifacts..."
-          copy opus\build\Release\x64\*.dll artifacts\lib_x64\ 2>nul || echo "No x64 DLLs found"
-          copy opus\build\Release\x64\*.lib artifacts\lib_x64\ 2>nul || echo "No x64 LIBs found"
+          for /r opus\build\x64 %%f in (*.dll) do (
+            echo Found x64 DLL: %%f
+            copy "%%f" artifacts\lib_x64\
+          )
+          for /r opus\build\x64 %%f in (*.lib) do (
+            echo Found x64 LIB: %%f
+            copy "%%f" artifacts\lib_x64\
+          )
 
           echo "Collecting headers..."
           xcopy opus\include artifacts\include /E /I /Y
+
+          echo "=== Final artifact contents ==="
+          dir artifacts /s
 
           echo "Creating zip archive..."
           powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
-
         with:
           name: opus-1.5.2
           path: opus-1.5.2.zip
