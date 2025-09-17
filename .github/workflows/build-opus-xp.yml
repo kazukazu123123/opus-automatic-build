@@ -3,6 +3,10 @@ name: Build Opus
 on:
   push:
 
+permissions:
+  contents: write
+  actions: read
+
 jobs:
   build:
     runs-on: windows-2022
@@ -15,6 +19,7 @@ jobs:
         id: get_tag
         shell: bash
         run: |
+          # Opusリポジトリから最新タグを取得
           git clone --depth 1 https://github.com/xiph/opus.git temp_opus
           cd temp_opus
           git fetch --tags
@@ -143,7 +148,7 @@ jobs:
             }
 
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.get_tag.outputs.tag }}
           name: Opus ${{ steps.get_tag.outputs.tag }} - Windows Binaries
@@ -165,6 +170,7 @@ jobs:
             ${{ env.ARCHIVE_NAME }}
           draft: false
           prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
