@@ -19,7 +19,6 @@ jobs:
         id: get_tag
         shell: bash
         run: |
-          # Opusリポジトリから最新タグを取得
           git clone --depth 1 https://github.com/xiph/opus.git temp_opus
           cd temp_opus
           git fetch --tags
