@@ -2,7 +2,14 @@ name: Build Opus
 
 on:
   push:
+    tags:
+      - 'v*'  # タグプッシュ時のみ実行
   workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to build (e.g., v1.5.2)'
+        required: true
+        default: 'v1.5.2'
 
 jobs:
   build:
@@ -12,6 +19,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Get tag name
+        id: get_tag
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+          else
+            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.3.1
 
@@ -20,7 +37,7 @@ jobs:
           git clone https://github.com/xiph/opus.git
           cd opus
           git fetch --tags
-          git checkout v1.5.2
+          git checkout ${{ steps.get_tag.outputs.tag }}
 
       - name: Build Opus x86
         shell: cmd
@@ -70,7 +87,7 @@ jobs:
           
           echo "=== Creating artifacts directory ==="
           cd ..
-          set OPUS_VER=1.5.2
+          set TAG_NAME=${{ steps.get_tag.outputs.tag }}
           mkdir artifacts
           mkdir artifacts\include
           mkdir artifacts\lib_x86
@@ -94,8 +111,71 @@ jobs:
           echo "=== Final artifact contents ==="
           dir artifacts /s
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+      - name: Create ZIP archive
+        shell: powershell
+        run: |
+          $tagName = "${{ steps.get_tag.outputs.tag }}"
+          $archiveName = "opus-windows-$tagName.zip"
+          Compress-Archive -Path "artifacts\*" -DestinationPath $archiveName
+          echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
+
+      - name: Delete existing release (if exists)
+        uses: actions/github-script@v7
         with:
-          name: opus-%OPUS_VER%
+          script: |
+            const tag = "${{ steps.get_tag.outputs.tag }}";
+            try {
+              const release = await github.rest.repos.getReleaseByTag({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                tag: tag
+              });
+              
+              if (release.data) {
+                console.log(`Deleting existing release: ${release.data.id}`);
+                await github.rest.repos.deleteRelease({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  release_id: release.data.id
+                });
+              }
+            } catch (error) {
+              if (error.status === 404) {
+                console.log('No existing release found, proceeding with new release creation');
+              } else {
+                throw error;
+              }
+            }
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.get_tag.outputs.tag }}
+          name: Opus ${{ steps.get_tag.outputs.tag }} - Windows Binaries
+          body: |
+            Windows binaries for Opus ${{ steps.get_tag.outputs.tag }}
+            
+            ## Contents:
+            - **lib_x86/**: 32-bit libraries and DLLs
+            - **lib_x64/**: 64-bit libraries and DLLs  
+            - **include/**: Header files
+            
+            ## Usage:
+            1. Extract the archive
+            2. Link against the appropriate libraries for your target architecture
+            3. Include the header files in your project
+            
+            Built with Visual Studio 2022 on Windows Server 2022.
+          files: |
+            ${{ env.ARCHIVE_NAME }}
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload build artifacts (fallback)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: opus-${{ steps.get_tag.outputs.tag }}
           path: artifacts/**
