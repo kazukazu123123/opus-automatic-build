@@ -12,47 +12,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install v141 toolset for VS2022
-        shell: pwsh
-        run: |
-          $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-          if (Test-Path $vsInstaller) {
-            Write-Host "Installing v141 toolset..."
-            & $vsInstaller modify --installPath "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise" --add Microsoft.VisualStudio.Component.VC.v141 --wait
-            if ($LASTEXITCODE -ne 0) {
-              Write-Error "Failed to install v141 toolset. Exit code: $LASTEXITCODE"
-              exit 1
-            }
-            Write-Host "v141 toolset installed successfully"
-          } else {
-            Write-Error "Visual Studio installer not found at $vsInstaller"
-            exit 1
-          }
-
-      - name: Verify v141 toolset installation
-        shell: pwsh
-        run: |
-          $v141Path = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC"
-          if (Test-Path $v141Path) {
-            Write-Host "Available MSVC versions:"
-            Get-ChildItem $v141Path | ForEach-Object { Write-Host "  $($_.Name)" }
-          }
-          
-          $v141ToolsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\Win32\PlatformToolsets\v141"
-          if (Test-Path $v141ToolsPath) {
-            Write-Host "v141 platform toolset found at: $v141ToolsPath"
-          } else {
-            Write-Warning "v141 platform toolset not found. Listing available toolsets:"
-            $toolsetsPath = "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise\MSBuild\Microsoft\VC\v170\Platforms\Win32\PlatformToolsets"
-            if (Test-Path $toolsetsPath) {
-              Get-ChildItem $toolsetsPath | ForEach-Object { Write-Host "  $($_.Name)" }
-            }
-          }
-
-      - name: Setup MSBuild and Developer Environment
+      - name: Setup MSBuild
         uses: microsoft/setup-msbuild@v1.3.1
-        with:
-          msbuild-architecture: x86
 
       - name: Download Opus
         run: |
@@ -66,7 +27,7 @@ jobs:
         run: |
           cd opus
           echo "Configuring x86 build..."
-          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -T v141 -DBUILD_SHARED_LIBS=ON ^
+          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON ^
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x86 ^
             -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x86
           if %ERRORLEVEL% neq 0 (
@@ -74,7 +35,7 @@ jobs:
             exit /b 1
           )
           echo "Building x86..."
-          msbuild build/x86/opus.sln /p:Configuration=Release /p:Platform=Win32 /v:minimal
+          msbuild build/x86/opus.sln /p:Configuration=Release /p:Platform=Win32
           if %ERRORLEVEL% neq 0 (
             echo "MSBuild failed for x86"
             exit /b 1
@@ -85,7 +46,7 @@ jobs:
         run: |
           cd opus
           echo "Configuring x64 build..."
-          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -T v141 -DBUILD_SHARED_LIBS=ON ^
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON ^
             -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x64 ^
             -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x64
           if %ERRORLEVEL% neq 0 (
@@ -93,7 +54,7 @@ jobs:
             exit /b 1
           )
           echo "Building x64..."
-          msbuild build/x64/opus.sln /p:Configuration=Release /p:Platform=x64 /v:minimal
+          msbuild build/x64/opus.sln /p:Configuration=Release /p:Platform=x64
           if %ERRORLEVEL% neq 0 (
             echo "MSBuild failed for x64"
             exit /b 1
@@ -124,6 +85,7 @@ jobs:
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
+
         with:
           name: opus-1.5.2
           path: opus-1.5.2.zip
