@@ -11,17 +11,6 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Install v141 XP toolset for VS2022
-        shell: pwsh
-        run: |
-          $vsInstaller = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vs_installer.exe"
-          if (Test-Path $vsInstaller) {
-            Write-Host "Starting Visual Studio Installer to add v141_xp toolset. This will take a few minutes..."
-            & $vsInstaller modify --installPath "${env:ProgramFiles}\Microsoft Visual Studio\2022\Enterprise" --add Microsoft.VisualStudio.Component.VC.v141.xp --wait --norestart -PassThru
-          } else {
-            Write-Error "Visual Studio installer not found at $vsInstaller"
-          }
-
       - name: Setup MSBuild and Developer Environment
         uses: microsoft/setup-msbuild@v1.3.1
 
@@ -32,30 +21,23 @@ jobs:
           git fetch --tags
           git checkout v1.5.2
 
-      - name: Build Opus x86 & x64 for Windows XP
+      - name: Build Opus x86
         shell: cmd
         run: |
           cd opus
+          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -T v141 -DBUILD_SHARED_LIBS=ON ^
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x86 ^
+            -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x86
+          msbuild build/x86/opus.sln /p:Configuration=Release /p:Platform=Win32
 
-          rem --- x86 Build for XP ---
-          echo "Configuring x86 build..."
-          mkdir build_x86
-          cd build_x86
-          rem The environment is now set by the setup-msbuild action. We no longer call vcvarsall.bat.
-          cmake .. -G "Visual Studio 17 2022" -A Win32 -T v141_xp -DBUILD_SHARED_LIBS=ON
-          echo "Building x86..."
-          msbuild opus.sln /p:Configuration=Release /p:Platform=Win32
-          cd ..
-
-          rem --- x64 Build for XP ---
-          echo "Configuring x64 build..."
-          mkdir build_x64
-          cd build_x64
-          rem The environment is also correctly set for the x64 build.
-          cmake .. -G "Visual Studio 17 2022" -A x64 -T v141_xp -DBUILD_SHARED_LIBS=ON
-          echo "Building x64..."
-          msbuild opus.sln /p:Configuration=Release /p:Platform=x64
-          cd ..
+      - name: Build Opus x64
+        shell: cmd
+        run: |
+          cd opus
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -T v141 -DBUILD_SHARED_LIBS=ON ^
+            -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=%cd%/build/Release/x64 ^
+            -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=%cd%/build/Release/x64
+          msbuild build/x64/opus.sln /p:Configuration=Release /p:Platform=x64
 
       - name: Collect artifacts
         shell: cmd
@@ -66,22 +48,18 @@ jobs:
           mkdir artifacts\lib_x86
           mkdir artifacts\lib_x64
 
-          echo "Searching for and copying x86 libraries..."
-          for /r opus\build_x86 %%f in (*.dll) do copy "%%f" artifacts\lib_x86\
-          for /r opus\build_x86 %%f in (*.lib) do copy "%%f" artifacts\lib_x86\
+          copy opus\build\Release\x86\*.dll artifacts\lib_x86\
+          copy opus\build\Release\x86\*.lib artifacts\lib_x86\
 
-          echo "Searching for and copying x64 libraries..."
-          for /r opus\build_x64 %%f in (*.dll) do copy "%%f" artifacts\lib_x64\
-          for /r opus\build_x64 %%f in (*.lib) do copy "%%f" artifacts\lib_x64\
+          copy opus\build\Release\x64\*.dll artifacts\lib_x64\
+          copy opus\build\Release\x64\*.lib artifacts\lib_x64\
 
-          echo "Copying include files..."
           xcopy opus\include artifacts\include /E /I /Y
 
-          echo "Zipping artifacts..."
-          powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%-xp.zip
+          powershell Compress-Archive -Path artifacts\* -DestinationPath opus-%OPUS_VER%.zip
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: opus-1.5.2-xp
-          path: opus-1.5.2-xp.zip
+          name: opus-1.5.2
+          path: opus-1.5.2.zip
