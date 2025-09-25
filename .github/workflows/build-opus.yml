@@ -43,7 +43,13 @@ jobs:
         run: |
           cd opus
           echo "Configuring x86 build..."
-          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON
+          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON ^
+            -DOPUS_X86_MAY_HAVE_SSE=OFF ^
+            -DOPUS_X86_MAY_HAVE_SSE2=OFF ^
+            -DOPUS_X86_MAY_HAVE_SSE4_1=OFF ^
+            -DOPUS_X86_PRESUME_SSE=OFF ^
+            -DOPUS_X86_PRESUME_SSE2=OFF ^
+            -DOPUS_X86_PRESUME_SSE4_1=OFF
           if %ERRORLEVEL% neq 0 (
             echo "CMake configuration failed for x86"
             exit /b 1
@@ -60,7 +66,13 @@ jobs:
         run: |
           cd opus
           echo "Configuring x64 build..."
-          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON
+          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON ^
+            -DOPUS_X86_MAY_HAVE_SSE=OFF ^
+            -DOPUS_X86_MAY_HAVE_SSE2=OFF ^
+            -DOPUS_X86_MAY_HAVE_SSE4_1=OFF ^
+            -DOPUS_X86_PRESUME_SSE=OFF ^
+            -DOPUS_X86_PRESUME_SSE2=OFF ^
+            -DOPUS_X86_PRESUME_SSE4_1=OFF
           if %ERRORLEVEL% neq 0 (
             echo "CMake configuration failed for x64"
             exit /b 1
