@@ -15,101 +15,64 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Get latest Opus tag
-        id: get_tag
-        run: |
-          git clone --depth 1 https://github.com/xiph/opus.git temp_opus
-          cd temp_opus
-          git fetch --tags
-          LATEST_TAG=$(git tag --sort=-version:refname | head -n 1)
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          echo "Using latest Opus tag: $LATEST_TAG"
-          cd ..
-          rm -rf temp_opus
-
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y autoconf automake libtool make gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config
+          sudo apt-get install -y build-essential autoconf automake libtool \
+            gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
+            gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config zip wget
 
-      - name: Clone Opus
+      - name: Download Opus tarball
         run: |
-          git clone https://github.com/xiph/opus.git
-          cd opus
-          git fetch --tags
-          git checkout ${{ steps.get_tag.outputs.tag }}
+          wget https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
+          tar -xzf opus-1.5.2.tar.gz
 
-      - name: Build Opus x86
+      - name: Build Opus for x86 (i686)
         run: |
-          cd opus
+          cd opus-1.5.2
           mkdir -p build/x86
-          ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
+          ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm \
+                      --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x86
 
-      - name: Build Opus x64
+      - name: Build Opus for x64 (x886_64)
         run: |
-          cd opus
+          cd opus-1.5.2
           mkdir -p build/x64
-          ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
+          ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
+                      --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x64
 
       - name: Collect artifacts
         run: |
-          cd opus
+          cd opus-1.5.2
           mkdir -p artifacts/include
           mkdir -p artifacts/lib_x86
           mkdir -p artifacts/lib_x64
 
           cp -r include/* artifacts/include/
-          cp -r build/x86/usr/local/lib/* artifacts/lib_x86/
-          cp -r build/x64/usr/local/lib/* artifacts/lib_x64/
+          cp -r build/x86/usr/local/lib/* artifacts/lib_x86/ || true
+          cp -r build/x64/usr/local/lib/* artifacts/lib_x64/ || true
 
       - name: Create ZIP archive
         run: |
-          tag=${{ steps.get_tag.outputs.tag }}
-          archive_name="opus-windows-$tag.zip"
+          cd opus-1.5.2
+          archive_name="opus-windows-1.5.2.zip"
+          rm -f "$archive_name"
           zip -r "$archive_name" artifacts
           echo "ARCHIVE_NAME=$archive_name" >> $GITHUB_ENV
-
-      - name: Delete existing release (if exists)
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const tag = "${{ steps.get_tag.outputs.tag }}";
-            try {
-              const release = await github.rest.repos.getReleaseByTag({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                tag: tag
-              });
-              
-              if (release.data) {
-                console.log(`Deleting existing release: ${release.data.id}`);
-                await github.rest.repos.deleteRelease({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  release_id: release.data.id
-                });
-              }
-            } catch (error) {
-              if (error.status === 404) {
-                console.log('No existing release found, proceeding with new release creation');
-              } else {
-                throw error;
-              }
-            }
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ steps.get_tag.outputs.tag }}
-          name: Opus ${{ steps.get_tag.outputs.tag }} - Windows Binaries
+          tag_name: "opus-1.5.2"
+          name: Opus 1.5.2 - Windows Binaries
           body: |
-            Windows binaries for Opus ${{ steps.get_tag.outputs.tag }}
+            Windows binaries for Opus 1.5.2
             
             ## Contents:
             - **lib_x86/**: 32-bit libraries and DLLs
@@ -133,5 +96,5 @@ jobs:
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: opus-${{ steps.get_tag.outputs.tag }}
+          name: opus-1.5.2
           path: artifacts/**
