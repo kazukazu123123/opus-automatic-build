@@ -51,7 +51,6 @@ jobs:
       - name: Create ZIP archive
         run: |
           cd opus-1.5.2
-          cp -r include build/
           archive_name="opus-windows-1.5.2.zip"
           rm -f "$archive_name"
           zip -r "$archive_name" build
