@@ -40,6 +40,7 @@ jobs:
       - name: Build Opus for x64 (x886_64)
         run: |
           cd opus-1.5.2
+          make clean
           mkdir -p build/x64
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
@@ -47,24 +48,14 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x64
 
-      - name: Collect artifacts
-        run: |
-          cd opus-1.5.2
-          mkdir -p artifacts/include
-          mkdir -p artifacts/lib_x86
-          mkdir -p artifacts/lib_x64
-
-          cp -r include/* artifacts/include/
-          cp -r build/x86/usr/local/lib/* artifacts/lib_x86/ || true
-          cp -r build/x64/usr/local/lib/* artifacts/lib_x64/ || true
-
       - name: Create ZIP archive
         run: |
           cd opus-1.5.2
+          cp -r include build/
           archive_name="opus-windows-1.5.2.zip"
           rm -f "$archive_name"
-          zip -r "$archive_name" artifacts
-          echo "ARCHIVE_NAME=$archive_name" >> $GITHUB_ENV
+          zip -r "$archive_name" build
+          echo "ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -73,17 +64,7 @@ jobs:
           name: Opus 1.5.2 - Windows Binaries
           body: |
             Windows binaries for Opus 1.5.2
-            
-            ## Contents:
-            - **lib_x86/**: 32-bit libraries and DLLs
-            - **lib_x64/**: 64-bit libraries and DLLs  
-            - **include/**: Header files
-            
-            ## Usage:
-            1. Extract the archive
-            2. Link against the appropriate libraries for your target architecture
-            3. Include the header files in your project
-            
+
             Built with MinGW-w64 on Ubuntu.
           files: ${{ env.ARCHIVE_NAME }}
           draft: false
