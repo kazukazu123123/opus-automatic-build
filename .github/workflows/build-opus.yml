@@ -37,6 +37,14 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x86
 
+      - name: Create ZIP archive for x86 (i686)
+        run: |
+          cd opus-1.5.2
+          archive_name="opus-windows-i686-1.5.2.zip"
+          rm -f "$archive_name"
+          zip -r "$archive_name" build
+          echo "i686_ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
+
       - name: Build Opus for x64 (x86_64)
         run: |
           cd opus-1.5.2
@@ -48,13 +56,13 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x64
 
-      - name: Create ZIP archive
+      - name: Create ZIP archive for x64 (x86_64)
         run: |
           cd opus-1.5.2
-          archive_name="opus-windows-1.5.2.zip"
+          archive_name="opus-windows-x86_64-1.5.2.zip"
           rm -f "$archive_name"
           zip -r "$archive_name" build
-          echo "ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
+          echo "X86_64_ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -63,9 +71,15 @@ jobs:
           name: Opus 1.5.2 - Windows Binaries
           body: |
             Windows binaries for Opus 1.5.2
-
+      
+            ## Contents:
+            - **opus-windows-i686-1.5.2.zip** → 32-bit build
+            - **opus-windows-x86_64-1.5.2.zip** → 64-bit build
+      
             Built with MinGW-w64 on Ubuntu.
-          files: ${{ env.ARCHIVE_NAME }}
+          files: |
+            ${{ env.i686_ARCHIVE_NAME }}
+            ${{ env.X86_64_ARCHIVE_NAME }}
           draft: false
           prerelease: false
           make_latest: true
