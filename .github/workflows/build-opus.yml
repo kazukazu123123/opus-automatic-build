@@ -1,4 +1,4 @@
-name: Build Opus
+name: Build Opus (Windows via Ubuntu)
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   build:
-    runs-on: windows-2022
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout repository
@@ -17,7 +17,6 @@ jobs:
 
       - name: Get latest Opus tag
         id: get_tag
-        shell: bash
         run: |
           git clone --depth 1 https://github.com/xiph/opus.git temp_opus
           cd temp_opus
@@ -28,10 +27,12 @@ jobs:
           cd ..
           rm -rf temp_opus
 
-      - name: Setup MSBuild
-        uses: microsoft/setup-msbuild@v1.3.1
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y autoconf automake libtool make gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config
 
-      - name: Download Opus
+      - name: Clone Opus
         run: |
           git clone https://github.com/xiph/opus.git
           cd opus
@@ -39,84 +40,40 @@ jobs:
           git checkout ${{ steps.get_tag.outputs.tag }}
 
       - name: Build Opus x86
-        shell: cmd
         run: |
           cd opus
-          echo "Configuring x86 build..."
-          cmake -S . -B build/x86 -G "Visual Studio 17 2022" -A Win32 -DBUILD_SHARED_LIBS=ON
-          if %ERRORLEVEL% neq 0 (
-            echo "CMake configuration failed for x86"
-            exit /b 1
-          )
-          echo "Building x86..."
-          cmake --build build/x86 --config Release
-          if %ERRORLEVEL% neq 0 (
-            echo "Build failed for x86"
-            exit /b 1
-          )
+          mkdir -p build/x86
+          ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
+          sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
+          make -j$(nproc)
+          make install DESTDIR=$(pwd)/build/x86
 
       - name: Build Opus x64
-        shell: cmd
         run: |
           cd opus
-          echo "Configuring x64 build..."
-          cmake -S . -B build/x64 -G "Visual Studio 17 2022" -A x64 -DBUILD_SHARED_LIBS=ON
-          if %ERRORLEVEL% neq 0 (
-            echo "CMake configuration failed for x64"
-            exit /b 1
-          )
-          echo "Building x64..."
-          cmake --build build/x64 --config Release
-          if %ERRORLEVEL% neq 0 (
-            echo "Build failed for x64"
-            exit /b 1
-          )
+          mkdir -p build/x64
+          ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
+          sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
+          make -j$(nproc)
+          make install DESTDIR=$(pwd)/build/x64
 
-      - name: Find and collect artifacts
-        shell: cmd
+      - name: Collect artifacts
         run: |
           cd opus
-          echo "Searching for generated files..."
-          
-          echo "=== x86 build directory structure ==="
-          dir build\x86 /s /b | findstr /E "\.dll \.lib \.exe"
-          
-          echo "=== x64 build directory structure ==="
-          dir build\x64 /s /b | findstr /E "\.dll \.lib \.exe"
-          
-          echo "=== Creating artifacts directory ==="
-          cd ..
-          set TAG_NAME=${{ steps.get_tag.outputs.tag }}
-          mkdir artifacts
-          mkdir artifacts\include
-          mkdir artifacts\lib_x86
-          mkdir artifacts\lib_x64
+          mkdir -p artifacts/include
+          mkdir -p artifacts/lib_x86
+          mkdir -p artifacts/lib_x64
 
-          echo "Collecting x86 artifacts..."
-          for /r opus\build\x86 %%f in (*.dll *.lib) do (
-              copy "%%f" artifacts\lib_x86\
-          )
-
-          echo "Collecting x64 artifacts..."
-          for /r opus\build\x64 %%f in (*.dll *.lib) do (
-              copy "%%f" artifacts\lib_x64\
-          )
-
-          echo "Collecting headers..."
-          for /r opus\include %%f in (*.h) do (
-              copy "%%f" artifacts\include\
-          )
-
-          echo "=== Final artifact contents ==="
-          dir artifacts /s
+          cp -r include/* artifacts/include/
+          cp -r build/x86/usr/local/lib/* artifacts/lib_x86/
+          cp -r build/x64/usr/local/lib/* artifacts/lib_x64/
 
       - name: Create ZIP archive
-        shell: powershell
         run: |
-          $tagName = "${{ steps.get_tag.outputs.tag }}"
-          $archiveName = "opus-windows-$tagName.zip"
-          Compress-Archive -Path "artifacts\*" -DestinationPath $archiveName
-          echo "ARCHIVE_NAME=$archiveName" >> $env:GITHUB_ENV
+          tag=${{ steps.get_tag.outputs.tag }}
+          archive_name="opus-windows-$tag.zip"
+          zip -r "$archive_name" artifacts
+          echo "ARCHIVE_NAME=$archive_name" >> $GITHUB_ENV
 
       - name: Delete existing release (if exists)
         uses: actions/github-script@v7
@@ -164,9 +121,8 @@ jobs:
             2. Link against the appropriate libraries for your target architecture
             3. Include the header files in your project
             
-            Built with Visual Studio 2022 on Windows Server 2022.
-          files: |
-            ${{ env.ARCHIVE_NAME }}
+            Built with MinGW-w64 on Ubuntu.
+          files: ${{ env.ARCHIVE_NAME }}
           draft: false
           prerelease: false
           make_latest: true
