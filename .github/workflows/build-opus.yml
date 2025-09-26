@@ -37,7 +37,7 @@ jobs:
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x86
 
-      - name: Build Opus for x64 (x886_64)
+      - name: Build Opus for x64 (x86_64)
         run: |
           cd opus-1.5.2
           make clean
