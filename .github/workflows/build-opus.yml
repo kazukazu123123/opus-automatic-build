@@ -44,6 +44,7 @@ jobs:
         run: |
           cd opus-1.5.2
           mkdir -p package_i686/lib_x86 package_i686/include
+          cp -r build/i686/bin/* package_i686/bin/ || true
           cp -r build/i686/lib/* package_i686/lib_x86/ || true
           cp -r build/i686/include/* package_i686/include/ || true
 
@@ -67,6 +68,7 @@ jobs:
         run: |
           cd opus-1.5.2
           mkdir -p package_x86_64/lib_x64 package_x86_64/include
+          cp -r build/x86_64/bin/* package_x86_64/bin/ || true
           cp -r build/x86_64/lib/* package_x86_64/lib_x64/ || true
           cp -r build/x86_64/include/* package_x86_64/include/ || true
 
