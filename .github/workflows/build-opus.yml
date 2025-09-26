@@ -27,43 +27,56 @@ jobs:
           wget https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
           tar -xzf opus-1.5.2.tar.gz
 
+      # ------------------------
+      # Build for x86 (i686)
+      # ------------------------
       - name: Build Opus for x86 (i686)
         run: |
           cd opus-1.5.2
-          mkdir -p build/x86
           ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
-          make install DESTDIR=$(pwd)/build/x86
+          make install DESTDIR=$(pwd)/build/i686
+          make distclean
 
-      - name: Create ZIP archive for x86 (i686)
+      - name: Package x86 ZIP
         run: |
           cd opus-1.5.2
-          archive_name="opus-windows-i686-1.5.2.zip"
-          rm -f "$archive_name"
-          zip -r "$archive_name" build
-          echo "i686_ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
+          mkdir -p package_i686/lib_x86 package_i686/include
+          cp -r build/i686/lib/* package_i686/lib_x86/ || true
+          cp -r build/i686/include/* package_i686/include/ || true
 
+          cd package_i686
+          zip -r ../opus-windows-i686-1.5.2.zip .
+          echo "I686_ARCHIVE_NAME=$(pwd)/../opus-windows-i686-1.5.2.zip" >> $GITHUB_ENV
+
+      # ------------------------
+      # Build for x64 (x86_64)
+      # ------------------------
       - name: Build Opus for x64 (x86_64)
         run: |
           cd opus-1.5.2
-          make clean
-          mkdir -p build/x64
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
-          make install DESTDIR=$(pwd)/build/x64
+          make install DESTDIR=$(pwd)/build/x86_64
 
-      - name: Create ZIP archive for x64 (x86_64)
+      - name: Package x64 ZIP
         run: |
           cd opus-1.5.2
-          archive_name="opus-windows-x86_64-1.5.2.zip"
-          rm -f "$archive_name"
-          zip -r "$archive_name" build
-          echo "X86_64_ARCHIVE_NAME=$(pwd)/$archive_name" >> $GITHUB_ENV
+          mkdir -p package_x86_64/lib_x64 package_x86_64/include
+          cp -r build/x86_64/lib/* package_x86_64/lib_x64/ || true
+          cp -r build/x86_64/include/* package_x86_64/include/ || true
 
+          cd package_x86_64
+          zip -r ../opus-windows-x86_64-1.5.2.zip .
+          echo "X86_64_ARCHIVE_NAME=$(pwd)/../opus-windows-x86_64-1.5.2.zip" >> $GITHUB_ENV
+
+      # ------------------------
+      # GitHub Release
+      # ------------------------
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
@@ -71,14 +84,18 @@ jobs:
           name: Opus 1.5.2 - Windows Binaries
           body: |
             Windows binaries for Opus 1.5.2
-      
+
             ## Contents:
             - **opus-windows-i686-1.5.2.zip** → 32-bit build
             - **opus-windows-x86_64-1.5.2.zip** → 64-bit build
-      
+
+            Each archive includes:
+            - `lib_x86/` or `lib_x64/` → libraries & DLLs
+            - `include/` → headers
+
             Built with MinGW-w64 on Ubuntu.
           files: |
-            ${{ env.i686_ARCHIVE_NAME }}
+            ${{ env.I686_ARCHIVE_NAME }}
             ${{ env.X86_64_ARCHIVE_NAME }}
           draft: false
           prerelease: false
