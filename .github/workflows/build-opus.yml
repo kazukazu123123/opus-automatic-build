@@ -50,10 +50,6 @@ jobs:
           cp .libs/libopus-0.dll package_i686/bin/
           cp .libs/libopus.dll.a package_i686/lib_x86/
 
-          # MinGW runtime DLLs
-          cp /usr/lib/gcc/i686-w64-mingw32/*/libgcc_s_dw2-1.dll package_i686/bin/ || true
-          cp /usr/i686-w64-mingw32/lib/libwinpthread-1.dll package_i686/bin/ || true
-
           # Headers
           cp -r build/i686/include/* package_i686/include/ || true
 
@@ -85,10 +81,6 @@ jobs:
           cp .libs/libopus-0.dll package_x86_64/bin/
           cp .libs/libopus.dll.a package_x86_64/lib_x64/
 
-          # MinGW runtime DLLs
-          cp /usr/lib/gcc/x86_64-w64-mingw32/*/libgcc_s_seh-1.dll package_x86_64/bin/ || true
-          cp /usr/x86_64-w64-mingw32/lib/libwinpthread-1.dll package_x86_64/bin/ || true
-
           # Headers
           cp -r build/x86_64/include/* package_x86_64/include/ || true
 
@@ -112,7 +104,7 @@ jobs:
             - **opus-windows-x86_64-1.5.2.zip** → 64-bit build
 
             Each archive includes:
-            - `bin/` → `libopus-0.dll` + required MinGW runtime DLLs
+            - `bin/` → `libopus-0.dll`
             - `lib_x86/` or `lib_x64/` → import libraries (`.dll.a`)
             - `include/` → headers
 
