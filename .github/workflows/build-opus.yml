@@ -71,7 +71,7 @@ jobs:
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
                       --disable-static --enable-shared \
-                      CFLAGS="-O2 -D_WIN32_WINNT=0x0501" CPPFLAGS="-D_WIN32_WINNT=0x0501"
+                      CFLAGS="-O2 -D_WIN32_WINNT=0x0502" CPPFLAGS="-D_WIN32_WINNT=0x0502"
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x86_64
