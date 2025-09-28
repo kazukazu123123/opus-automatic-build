@@ -36,7 +36,7 @@ jobs:
           ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
                       --disable-static --enable-shared \
-                      LDFLAGS="-static-libgcc”
+                      LDFLAGS="-static-libgcc"
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/i686
@@ -71,7 +71,7 @@ jobs:
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
                       --disable-static --enable-shared \
-                      LDFLAGS="-static-libgcc”
+                      LDFLAGS="-static-libgcc"
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/x86_64
