@@ -40,6 +40,13 @@ jobs:
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
           make install DESTDIR=$(pwd)/build/i686
+          echo TESTING
+          echo TESTING
+          echo --------
+          tree
+          echo --------
+          echo TESTING
+          echo TESTING
 
       - name: Package x86 ZIP
         run: |
