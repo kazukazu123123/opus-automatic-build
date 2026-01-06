@@ -1,7 +1,11 @@
 name: Build Opus (Windows via Ubuntu)
 
 on:
-  push:
+  workflow_dispatch:
+
+env:
+  OPUS_VERSION: "1.6"
+  DOWNLOAD_URL: "https://downloads.xiph.org/releases/opus/opus-${{ github.event.inputs.version }}.tar.gz"
 
 permissions:
   contents: write
@@ -18,21 +22,21 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential autoconf automake libtool \
+          sudo apt-get install -y build-essential autoconf libtool \
             gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
             gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config zip wget
 
-      - name: Download Opus tarball
+      - name: Download and Extract Opus
         run: |
-          wget https://downloads.xiph.org/releases/opus/opus-1.5.2.tar.gz
-          tar -xzf opus-1.5.2.tar.gz
+          wget https://downloads.xiph.org/releases/opus/opus-${{ env.OPUS_VERSION }}.tar.gz
+          tar -xzf opus-${{ env.OPUS_VERSION }}.tar.gz
 
       # ------------------------
       # Build for x86 (i686)
       # ------------------------
       - name: Build Opus for x86 (i686)
         run: |
-          cd opus-1.5.2
+          cd opus-${{ env.OPUS_VERSION }}
           ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
                       --disable-static --enable-shared \
@@ -43,26 +47,22 @@ jobs:
 
       - name: Package x86 ZIP
         run: |
-          cd opus-1.5.2
+          cd opus-${{ env.OPUS_VERSION }}
           mkdir -p package_i686/bin package_i686/lib_x86 package_i686/include
-
-          # Opus DLL + import library
           cp build/i686/bin/libopus-0.dll package_i686/bin/
           cp build/i686/lib/libopus.dll.a package_i686/lib_x86/
-
-          # Headers
           cp -r build/i686/include/* package_i686/include/ || true
-
-          cd package_i686
-          zip -r ../opus-windows-i686-1.5.2.zip .
-          echo "I686_ARCHIVE_NAME=$(pwd)/../opus-windows-i686-1.5.2.zip" >> $GITHUB_ENV
+          
+          ZIP_NAME="opus-windows-i686-${{ env.OPUS_VERSION }}.zip"
+          cd package_i686 && zip -r ../../$ZIP_NAME .
+          echo "I686_ARCHIVE=$ZIP_NAME" >> $GITHUB_ENV
 
       # ------------------------
       # Build for x64 (x86_64)
       # ------------------------
       - name: Build Opus for x64 (x86_64)
         run: |
-          cd opus-1.5.2
+          cd opus-${{ env.OPUS_VERSION }}
           make distclean
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
@@ -74,19 +74,15 @@ jobs:
 
       - name: Package x64 ZIP
         run: |
-          cd opus-1.5.2
+          cd opus-${{ env.OPUS_VERSION }}
           mkdir -p package_x86_64/bin package_x86_64/lib_x64 package_x86_64/include
-
-          # Opus DLL + import library
           cp build/x86_64/bin/libopus-0.dll package_x86_64/bin/
           cp build/x86_64/lib/libopus.dll.a package_x86_64/lib_x64/
-
-          # Headers
           cp -r build/x86_64/include/* package_x86_64/include/ || true
 
-          cd package_x86_64
-          zip -r ../opus-windows-x86_64-1.5.2.zip .
-          echo "X86_64_ARCHIVE_NAME=$(pwd)/../opus-windows-x86_64-1.5.2.zip" >> $GITHUB_ENV
+          ZIP_NAME="opus-windows-x86_64-${{ env.OPUS_VERSION }}.zip"
+          cd package_x86_64 && zip -r ../../$ZIP_NAME .
+          echo "X86_64_ARCHIVE=$ZIP_NAME" >> $GITHUB_ENV
 
       # ------------------------
       # GitHub Release
@@ -94,24 +90,14 @@ jobs:
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: "opus-1.5.2"
-          name: Opus 1.5.2 - Windows DLL Binaries
+          tag_name: "v${{ env.OPUS_VERSION }}"
+          name: Opus ${{ env.OPUS_VERSION }} - Windows DLL Binaries
           body: |
-            Windows DLL binaries for Opus 1.5.2
-
-            ## Contents:
-            - **opus-windows-i686-1.5.2.zip** → 32-bit build
-            - **opus-windows-x86_64-1.5.2.zip** → 64-bit build
-
-            Each archive includes:
-            - `bin/` → `libopus-0.dll`
-            - `lib_x86/` or `lib_x64/` → import libraries (`.dll.a`)
-            - `include/` → headers
-
+            Windows DLL binaries for Opus ${{ env.OPUS_VERSION }}
             Built with MinGW-w64 on Ubuntu.
           files: |
-            ${{ env.I686_ARCHIVE_NAME }}
-            ${{ env.X86_64_ARCHIVE_NAME }}
+            ${{ env.I686_ARCHIVE }}
+            ${{ env.X86_64_ARCHIVE }}
           draft: false
           prerelease: false
           make_latest: true
