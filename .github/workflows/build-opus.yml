@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 env:
-  OPUS_VERSION: "1.6"
+  OPUS_VERSION: "1.6.1"
   DOWNLOAD_URL: "https://downloads.xiph.org/releases/opus/opus-${{ github.event.inputs.version }}.tar.gz"
 
 permissions:
