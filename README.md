@@ -14,8 +14,11 @@ Get the latest binaries from [Releases](https://github.com/kazukazu123123/opus-a
 - `opus-windows-x86_64-<version>.zip` — 64-bit
 - `opus-windows-i686-<version>.zip` — 32-bit
 
-Each ZIP contains the DLL (`bin/`), the import library (`lib_x64/` or `lib_x86/`),
-and the headers (`include/`).
+Each ZIP contains the DLL (`bin/`), the headers (`include/`), and import
+libraries in `lib_x64/` or `lib_x86/`:
+
+- `libopus.dll.a` — MinGW / GCC
+- `libopus.lib` — MSVC (`link.exe`)
 
 ## How auto-updates work
 

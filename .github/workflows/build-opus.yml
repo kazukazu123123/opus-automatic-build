@@ -89,7 +89,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y build-essential autoconf libtool \
             gcc-mingw-w64-x86-64 g++-mingw-w64-x86-64 \
-            gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config zip wget
+            gcc-mingw-w64-i686 g++-mingw-w64-i686 pkg-config zip wget \
+            mingw-w64-tools llvm
 
       - name: Download and Extract Opus
         run: |
@@ -118,6 +119,11 @@ jobs:
           cp build/i686/lib/libopus.dll.a package_i686/lib_x86/
           cp -r build/i686/include/* package_i686/include/ || true
 
+          # MSVC-compatible import library (.lib) generated from the DLL.
+          gendef package_i686/bin/libopus-0.dll
+          llvm-dlltool -m i386 -D libopus-0.dll \
+                       -d libopus-0.def -l package_i686/lib_x86/libopus.lib
+
           ZIP_NAME="opus-windows-i686-${{ env.OPUS_VERSION }}.zip"
           cd package_i686 && zip -r ../../$ZIP_NAME .
           echo "I686_ARCHIVE=$ZIP_NAME" >> $GITHUB_ENV
@@ -144,6 +150,11 @@ jobs:
           cp build/x86_64/bin/libopus-0.dll package_x86_64/bin/
           cp build/x86_64/lib/libopus.dll.a package_x86_64/lib_x64/
           cp -r build/x86_64/include/* package_x86_64/include/ || true
+
+          # MSVC-compatible import library (.lib) generated from the DLL.
+          gendef package_x86_64/bin/libopus-0.dll
+          llvm-dlltool -m i386:x86-64 -D libopus-0.dll \
+                       -d libopus-0.def -l package_x86_64/lib_x64/libopus.lib
 
           ZIP_NAME="opus-windows-x86_64-${{ env.OPUS_VERSION }}.zip"
           cd package_x86_64 && zip -r ../../$ZIP_NAME .
