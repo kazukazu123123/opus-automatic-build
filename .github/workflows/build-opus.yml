@@ -2,18 +2,83 @@ name: Build Opus (Windows via Ubuntu)
 
 on:
   workflow_dispatch:
-
-env:
-  OPUS_VERSION: "1.6.1"
-  DOWNLOAD_URL: "https://downloads.xiph.org/releases/opus/opus-${{ github.event.inputs.version }}.tar.gz"
+    inputs:
+      version:
+        description: "Opus version to build (e.g. 1.6.1). Leave empty to auto-detect latest."
+        required: false
+        default: ""
+      force:
+        description: "Build even if a release for that version already exists."
+        type: boolean
+        default: false
+  schedule:
+    # Weekly check for new upstream Opus tags (Mondays 00:00 UTC).
+    # GitHub API only — no load on xiph.org.
+    - cron: "0 0 * * 1"
 
 permissions:
   contents: write
   actions: read
 
 jobs:
-  build:
+  # ------------------------------------------------------------
+  # Detect the latest stable Opus version and decide whether to
+  # build. This only queries the GitHub API for xiph/opus tags,
+  # so the daily schedule never touches downloads.xiph.org.
+  # ------------------------------------------------------------
+  check:
     runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.detect.outputs.version }}
+      should_build: ${{ steps.detect.outputs.should_build }}
+    steps:
+      - name: Detect version
+        id: detect
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          FORCE: ${{ github.event.inputs.force }}
+        run: |
+          set -euo pipefail
+
+          if [ -n "${INPUT_VERSION}" ]; then
+            VERSION="${INPUT_VERSION}"
+            echo "Using manually requested version: ${VERSION}"
+          else
+            # Latest stable tag from xiph/opus (exclude alpha/beta/rc).
+            VERSION=$(gh api repos/xiph/opus/tags --paginate \
+              --jq '.[].name' \
+              | grep -E '^v[0-9]+(\.[0-9]+)*$' \
+              | sed 's/^v//' \
+              | sort -V \
+              | tail -n1)
+            echo "Latest upstream stable version: ${VERSION}"
+          fi
+
+          if [ -z "${VERSION}" ]; then
+            echo "Could not determine a version." >&2
+            exit 1
+          fi
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+
+          # Skip if we already published this version (unless forced).
+          if [ "${FORCE}" = "true" ]; then
+            echo "Force build requested."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          elif gh release view "v${VERSION}" --repo "${GITHUB_REPOSITORY}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists. Nothing to do."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New version v${VERSION} — will build."
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
+
+  build:
+    needs: check
+    if: needs.check.outputs.should_build == 'true'
+    runs-on: ubuntu-24.04
+    env:
+      OPUS_VERSION: ${{ needs.check.outputs.version }}
 
     steps:
       - name: Checkout repository
@@ -52,7 +117,7 @@ jobs:
           cp build/i686/bin/libopus-0.dll package_i686/bin/
           cp build/i686/lib/libopus.dll.a package_i686/lib_x86/
           cp -r build/i686/include/* package_i686/include/ || true
-          
+
           ZIP_NAME="opus-windows-i686-${{ env.OPUS_VERSION }}.zip"
           cd package_i686 && zip -r ../../$ZIP_NAME .
           echo "I686_ARCHIVE=$ZIP_NAME" >> $GITHUB_ENV
