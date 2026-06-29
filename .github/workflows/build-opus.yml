@@ -180,3 +180,20 @@ jobs:
           make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # ------------------------
+      # Keep only the latest release
+      # ------------------------
+      - name: Remove older releases
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          KEEP="v${{ env.OPUS_VERSION }}"
+          gh release list --repo "${GITHUB_REPOSITORY}" --json tagName --jq '.[].tagName' \
+            | while read -r tag; do
+                if [ -n "${tag}" ] && [ "${tag}" != "${KEEP}" ]; then
+                  echo "Deleting old release ${tag}"
+                  gh release delete "${tag}" --repo "${GITHUB_REPOSITORY}" --yes --cleanup-tag
+                fi
+              done
