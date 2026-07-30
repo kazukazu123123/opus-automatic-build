@@ -83,7 +83,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
 
       - name: Install dependencies
         run: |
@@ -177,7 +177,7 @@ jobs:
       # GitHub Release
       # ------------------------
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: "v${{ env.OPUS_VERSION }}"
           name: Opus ${{ env.OPUS_VERSION }} - Windows DLL Binaries
