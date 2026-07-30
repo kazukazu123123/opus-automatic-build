@@ -106,7 +106,7 @@ jobs:
           cd opus-${{ env.OPUS_VERSION }}
           ./configure --disable-intrinsics --host=i686-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
-                      --disable-static --enable-shared \
+                      --enable-static --enable-shared \
                       LDFLAGS="-static-libgcc"
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
@@ -117,7 +117,13 @@ jobs:
           cd opus-${{ env.OPUS_VERSION }}
           mkdir -p package_i686/bin package_i686/lib_x86 package_i686/include
           cp build/i686/bin/libopus-0.dll package_i686/bin/
+          # MinGW/GCC static library.
+          cp build/i686/lib/libopus.a package_i686/lib_x86/
+          # MinGW/GCC import library for the DLL.
           cp build/i686/lib/libopus.dll.a package_i686/lib_x86/
+          # MSVC-compatible static library, converted from the MinGW archive.
+          llvm-lib /machine:X86 /out:package_i686/lib_x86/libopus-static.lib \
+                    build/i686/lib/libopus.a
           cp -r build/i686/include/* package_i686/include/ || true
 
           # MSVC-compatible import library (.lib) generated from the DLL.
@@ -138,7 +144,7 @@ jobs:
           make distclean
           ./configure --disable-intrinsics --host=x86_64-w64-mingw32 --disable-asm \
                       --prefix=/ --disable-rtcd --disable-extra-programs --disable-stack-protector \
-                      --disable-static --enable-shared \
+                      --enable-static --enable-shared \
                       LDFLAGS="-static-libgcc"
           sed -i 's/-D_FORTIFY_SOURCE=2//g' Makefile
           make -j$(nproc)
@@ -149,7 +155,13 @@ jobs:
           cd opus-${{ env.OPUS_VERSION }}
           mkdir -p package_x86_64/bin package_x86_64/lib_x64 package_x86_64/include
           cp build/x86_64/bin/libopus-0.dll package_x86_64/bin/
+          # MinGW/GCC static library.
+          cp build/x86_64/lib/libopus.a package_x86_64/lib_x64/
+          # MinGW/GCC import library for the DLL.
           cp build/x86_64/lib/libopus.dll.a package_x86_64/lib_x64/
+          # MSVC-compatible static library, converted from the MinGW archive.
+          llvm-lib /machine:X64 /out:package_x86_64/lib_x64/libopus-static.lib \
+                    build/x86_64/lib/libopus.a
           cp -r build/x86_64/include/* package_x86_64/include/ || true
 
           # MSVC-compatible import library (.lib) generated from the DLL.

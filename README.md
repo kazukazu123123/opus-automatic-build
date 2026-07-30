@@ -14,11 +14,18 @@ Get the latest binaries from [Releases](https://github.com/kazukazu123123/opus-a
 - `opus-windows-x86_64-<version>.zip` — 64-bit
 - `opus-windows-i686-<version>.zip` — 32-bit
 
-Each ZIP contains the DLL (`bin/`), the headers (`include/`), and import
-libraries in `lib_x64/` or `lib_x86/`:
+Each ZIP contains the DLL (`bin/`), the headers (`include/`), and libraries in
+`lib_x64/` or `lib_x86/`:
 
+- `libopus.a` — MinGW / GCC static library
+- `libopus-static.lib` — MSVC (`link.exe`) static library
 - `libopus.dll.a` — MinGW / GCC
-- `libopus.lib` — MSVC (`link.exe`)
+- `libopus.lib` — MSVC (`link.exe`) import library for the DLL
+
+The static and shared libraries are built from the same source. Use
+`libopus.a` or `libopus-static.lib` when linking Opus statically. Use
+`libopus.dll.a` or `libopus.lib` together with the matching DLL in `bin/` for
+dynamic linking.
 
 ## How auto-updates work
 
